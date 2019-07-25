@@ -42,7 +42,15 @@ else
   exit 1
 fi
 
-
-
+if [ "${CERT_NEW_END_DATE}" -gt "${CERT_OLD_END_DATE}" ]; then
+  # В начале нужно менять в /var/opt/ideco/reverse_proxy_backend/storage.db , ибо именно там reverse_proxy_backend хранит сертификаты
+  
+  sshpass -p "${UTM_PASS}" scp -q -o StrictHostKeyChecking=no -o "UserKnownHostsFile /dev/null" "${CERT_NEW}" "${UTM_USER}"@"${UTM_IP}":"${UTM_CERT}"
+  # PID nginx'а для reverse proxy указан в конфиге /var/opt/ideco/nginx_reverse_proxy/nginx.conf
+  sshpass -p "${UTM_PASS}" ssh -q -o StrictHostKeyChecking=no -o "UserKnownHostsFile /dev/null" "${UTM_USER}"@"${UTM_IP}" 'kill -HUP $(cat /tmp/nginx_reverse_proxy.pid)'
+  echo "Certificate "$(openssl x509 -in "${CERT_OLD}" -noout -enddate | cut -d= -f 2)" has been replaced with certificate "$(openssl x509 -in "${CERT_NEW}" -noout -enddate | cut -d= -f 2)"" >&1
+else
+  echo "Certificate "$(openssl x509 -in "${CERT_OLD}" -noout -enddate | cut -d= -f 2)" does not require replacement with certificate "$(openssl x509 -in "${CERT_NEW}" -noout -enddate | cut -d= -f 2)"" >&1
+fi
 # Убираем за собой
 rm -rf "${CERT_NEW}" "${CERT_OLD}"
