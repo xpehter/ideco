@@ -15,6 +15,7 @@ fi
 # Переменные
 CERT_NEW_PATH='/tmp/help.ideco.ru.crt'
 CERT_NEW_ACME_PATH='/root/.acme.sh/help.ideco.ru/'
+CERT_NEW_DB_PATH='/var/opt/ideco/reverse_proxy_backend/storage.db'
 CERT_OLD='/tmp/help.ideco.ru.crt_old'
 UTM_IP='10.80.1.1'
 UTM_PASS="$(cat /root/.ssh/utm_pass)"
@@ -35,6 +36,7 @@ sshpass -p "${UTM_PASS}" scp -q -o StrictHostKeyChecking=no -o "UserKnownHostsFi
 if test -f "${CERT_NEW_PATH}"; then
   CERT_NEW_QUOTES="'"$(cat "${CERT_NEW_PATH}")"'"
   CERT_NEW_CN="$(openssl x509 -in "${CERT_NEW_PATH}" -noout -subject | cut -d= -f3)"
+  CERT_NEW_CN_QUOTES="'""${CERT_NEW_CN}""'"
   CERT_NEW_END_DATE_HUMAN="$(openssl x509 -in "${CERT_NEW_PATH}" -noout -enddate | cut -d= -f2)"
   CERT_NEW_END_DATE="$(date "+%s" --date="${CERT_NEW_END_DATE_HUMAN}")"
 else
@@ -54,7 +56,7 @@ if [ "${CERT_NEW_CN}" == "${CERT_OLD_CN}" ]; then
   if [ "${CERT_NEW_END_DATE}" -gt "${CERT_OLD_END_DATE}" ]; then
     # В начале нужно менять в /var/opt/ideco/reverse_proxy_backend/storage.db , ибо именно там reverse_proxy_backend хранит сертификаты
     
-    QUERY="
+    QUERY="\"
     UPDATE
       SiteModel
     SET
@@ -72,11 +74,13 @@ if [ "${CERT_NEW_CN}" == "${CERT_OLD_CN}" ]; then
             FROM
               DomainModel
             WHERE
-              domain = 'help.ideco.ru'
+              domain = "${CERT_NEW_CN_QUOTES}"
           )
       );
-    "
-    #sshpass -p "${UTM_PASS}" ssh -q -o StrictHostKeyChecking=no -o "UserKnownHostsFile /dev/null" "${UTM_USER}"@"${UTM_IP}" "echo "${QUERY}" | sqlite3 storage.db"
+    \""
+    #echo "${QUERY}"
+    #sshpass -p "${UTM_PASS}" ssh -q -o StrictHostKeyChecking=no -o "UserKnownHostsFile /dev/null" "${UTM_USER}"@"${UTM_IP}" "echo -e "${QUERY}" | sqlite3 "${CERT_NEW_DB_PATH}""
+    sshpass -p "${UTM_PASS}" ssh -q -o StrictHostKeyChecking=no -o "UserKnownHostsFile /dev/null" "${UTM_USER}"@"${UTM_IP}" "echo -e "${QUERY}" > /root/d.kondrashov/query"
     sshpass -p "${UTM_PASS}" scp -q -o StrictHostKeyChecking=no -o "UserKnownHostsFile /dev/null" "${CERT_NEW_PATH}" "${UTM_USER}"@"${UTM_IP}":"${UTM_CERT}"
     sshpass -p "${UTM_PASS}" ssh -q -o StrictHostKeyChecking=no -o "UserKnownHostsFile /dev/null" "${UTM_USER}"@"${UTM_IP}" "kill -HUP "${UTM_REVERSE_PROXY_PID}""
     echo "Certificate "${CERT_NEW_CN}" replaced "${CERT_OLD_END_DATE_HUMAN}" -> "${CERT_NEW_END_DATE_HUMAN}"" >&1
