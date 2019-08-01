@@ -24,9 +24,9 @@ UTM_CERT='/var/opt/ideco/nginx_reverse_proxy/user_certs/help.ideco.ru.crt'
 UTM_REVERSE_PROXY_PID='$(cat /tmp/nginx_reverse_proxy.pid)' # PID nginx'а для reverse proxy указан в конфиге /var/opt/ideco/nginx_reverse_proxy/nginx.conf
 
 # Знаю про http://porkmail.org/era/unix/award.html#cat
-cat "${CERT_NEW_ACME_PATH}"help.ideco.ru.key > "${CERT_NEW_PATH}"
-echo '' >> "${CERT_NEW_PATH}" # Для красоты
-cat "${CERT_NEW_ACME_PATH}"fullchain.cer >> "${CERT_NEW_PATH}"
+#cat "${CERT_NEW_ACME_PATH}"help.ideco.ru.key > "${CERT_NEW_PATH}"
+#echo '' >> "${CERT_NEW_PATH}" # Для красоты
+#cat "${CERT_NEW_ACME_PATH}"fullchain.cer >> "${CERT_NEW_PATH}"
 
 # TODO (xpeh): Проверка наличия sshpass, иначе пишем в лог
 
@@ -55,7 +55,7 @@ fi
 if [ "${CERT_NEW_CN}" == "${CERT_OLD_CN}" ]; then
   if [ "${CERT_NEW_END_DATE}" -gt "${CERT_OLD_END_DATE}" ]; then
     # В начале нужно менять в /var/opt/ideco/reverse_proxy_backend/storage.db , ибо именно там reverse_proxy_backend хранит сертификаты
-    
+    IFS_TMP=""'"$(printf '%q' "$IFS")"'"" && IFS=""
     QUERY="\"
     UPDATE
       SiteModel
@@ -80,7 +80,10 @@ if [ "${CERT_NEW_CN}" == "${CERT_OLD_CN}" ]; then
     \""
     #echo "${QUERY}"
     #sshpass -p "${UTM_PASS}" ssh -q -o StrictHostKeyChecking=no -o "UserKnownHostsFile /dev/null" "${UTM_USER}"@"${UTM_IP}" "echo -e "${QUERY}" | sqlite3 "${CERT_NEW_DB_PATH}""
-    sshpass -p "${UTM_PASS}" ssh -q -o StrictHostKeyChecking=no -o "UserKnownHostsFile /dev/null" "${UTM_USER}"@"${UTM_IP}" "echo -e "${QUERY}" > /root/d.kondrashov/query"
+    sshpass -p "${UTM_PASS}" ssh -q -o StrictHostKeyChecking=no -o "UserKnownHostsFile /dev/null" "${UTM_USER}"@"${UTM_IP}" "printf '%b' "${QUERY}" > /root/d.kondrashov/query"
+    #sshpass -p "${UTM_PASS}" ssh -q -o StrictHostKeyChecking=no -o "UserKnownHostsFile /dev/null" "${UTM_USER}"@"${UTM_IP}" "printf '%b' "${QUERY}" | sqlite3 "${CERT_NEW_DB_PATH}""
+    IFS="${IFS_TMP}"
+    #IFS="$(printf '%b' $' \t\n')"
     sshpass -p "${UTM_PASS}" scp -q -o StrictHostKeyChecking=no -o "UserKnownHostsFile /dev/null" "${CERT_NEW_PATH}" "${UTM_USER}"@"${UTM_IP}":"${UTM_CERT}"
     sshpass -p "${UTM_PASS}" ssh -q -o StrictHostKeyChecking=no -o "UserKnownHostsFile /dev/null" "${UTM_USER}"@"${UTM_IP}" "kill -HUP "${UTM_REVERSE_PROXY_PID}""
     echo "Certificate "${CERT_NEW_CN}" replaced "${CERT_OLD_END_DATE_HUMAN}" -> "${CERT_NEW_END_DATE_HUMAN}"" >&1
@@ -91,4 +94,4 @@ else
   echo "Common name different "${CERT_NEW_CN}" != "${CERT_OLD_CN}"">&2
 fi
 # Убираем за собой
-rm -rf "${CERT_NEW_PATH}" "${CERT_OLD}"
+#rm -rf "${CERT_NEW_PATH}" "${CERT_OLD}"
