@@ -11,26 +11,29 @@
 #exec > >(logger  -p local0.notice -t $(basename "$0"))
 #exec 2> >(logger  -p local0.error -t $(basename "$0"))
 
-# TODO (xpeh): Проверка на запуск с правами root'а,
-# иначе рядом пишем лог об этом
-if [[ $EUID -ne 0 ]]; then
-  printf '%s\n' "This script must be run as root" 1>&2
+# Для доступа к сертификатам, выпущенным acme.sh'ем, нужны права root'а,
+# здесь мы проверяем их наличие и в случае отсутствия рядом пишем лог об этом
+if [[ "${EUID}" -ne 0 ]]; then
+  printf '%s\n' "$(date) Started by ${USER} Script ${0} must be run as root" \
+    >> "${0}.log"
   exit 1
 fi
 
 # Проверка зависимостей:
 #   sshpass
 type sshpass > /dev/null 2>&1
-if [[ "$?" != "0" ]]; then
+if [[ "${?}" -ne 0 ]]; then
   printf '%s\n' "Not installed sshpass" >&2
   exit 1
 fi
 
-# Переменные
+# Переменные для работы с локальными данными
 CERT_NEW_PATH='/tmp/help.ideco.ru.crt'
 CERT_NEW_ACME_PATH='/root/.acme.sh/help.ideco.ru/'
-CERT_NEW_DB_PATH='/var/opt/ideco/reverse_proxy_backend/storage.db'
 CERT_OLD='/tmp/help.ideco.ru.crt_old'
+
+# Переменные для работы с UTM
+CERT_NEW_DB_PATH='/var/opt/ideco/reverse_proxy_backend/storage.db'
 UTM_IP='10.80.1.1'
 UTM_PASS="$(cat /root/.ssh/utm_pass)"
 UTM_USER='root'
@@ -40,9 +43,9 @@ UTM_CERT='/var/opt/ideco/nginx_reverse_proxy/user_certs/help.ideco.ru.crt'
 UTM_REVERSE_PROXY_PID='$(cat /tmp/nginx_reverse_proxy.pid)'
 
 # Знаю про http://porkmail.org/era/unix/award.html#cat
-cat "${CERT_NEW_ACME_PATH}"help.ideco.ru.key > "${CERT_NEW_PATH}"
+cat "${CERT_NEW_ACME_PATH}help.ideco.ru.key" > "${CERT_NEW_PATH}"
 printf '\n' "" >> "${CERT_NEW_PATH}" # Для красоты
-cat "${CERT_NEW_ACME_PATH}"fullchain.cer >> "${CERT_NEW_PATH}"
+cat "${CERT_NEW_ACME_PATH}fullchain.cer" >> "${CERT_NEW_PATH}"
 
 sshpass -p "${UTM_PASS}" scp -q -o StrictHostKeyChecking=no \
   -o "UserKnownHostsFile /dev/null" \
