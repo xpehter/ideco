@@ -18,8 +18,13 @@ if [[ $EUID -ne 0 ]]; then
   exit 1
 fi
 
-# TODO (xpeh): Проверка зависимостей:
+# Проверка зависимостей:
 #   sshpass
+type sshpass > /dev/null 2>&1
+if [[ "$?" != "0" ]]; then
+  printf '%s\n' "Not installed sshpass" >&2
+  exit 1
+fi
 
 # Переменные
 CERT_NEW_PATH='/tmp/help.ideco.ru.crt'
