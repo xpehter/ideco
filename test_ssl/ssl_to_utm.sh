@@ -7,9 +7,9 @@
 #   если в нём нет нужно функционала "спускаться ниже", пользуя запросы к его
 #   SQLite-базе и т.д.
 
-# Логирование https://habr.com/ru/post/281601/
-#exec > >(logger  -p local0.notice -t $(basename "$0"))
-#exec 2> >(logger  -p local0.error -t $(basename "$0"))
+# Логирование
+exec > >(logger  -p local0.notice -t "$(basename "${0}") notice")
+exec 2> >(logger  -p local0.error -t "$(basename "${0}") error")
 
 # Для доступа к сертификатам, выпущенным acme.sh'ем, нужны права root'а,
 # здесь мы проверяем их наличие и в случае отсутствия рядом пишем лог об этом
